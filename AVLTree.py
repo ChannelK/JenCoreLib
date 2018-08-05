@@ -72,15 +72,15 @@ class AvlTree:
         else:
             self._add(val,self.root)
 
-    def _findValParent(self,val,node,parent,isLeft):
+    def _findNode(self,val,node):
         if node is None:
             return None
         elif val > node.val:
-            return self.findVal(val,node.rchild,False)
+            return self._findNode(val,node.rchild)
         elif val < node.val:
-            return self.findVal(val,node.node.lchild,True)
+            return self._findNode(val,node.lchild)
         else:
-            return (parent,isLeft)
+            return node
 
     def _findParentSetter(self,node):
         if node.parent is None:
@@ -92,20 +92,54 @@ class AvlTree:
         
     def remove(self,val):
         #any duplicate would be stored in the left subtree
-        valParent,isLeftChild = self._findValParent(val,self.root,self)
+        removeNode = self._findNode(val,self.root)
         if removeNode is None:
             raise ValueError("Cannot remove value '%s' from tree!"%str(val))
-        if removeNode is self:
-            self.root = None
+        
+        parentSetter = self._findParentSetter(removeNode)
+        #if is leaf, just remove
+        if removeNode.lchild is None and removeNode.rchild is None:
+            parent = removeNode.parent
+            parentSetter(None)
+            #node will be garbage collected
+            removeNode.parent = None
+            parent.update()
+            self._balance(parent)
+        #if only rchild, just replace with rchild
+        elif removeNode.lchild is None:
+            parent = removeNode.parent
+            parentSetter(removeNode.rchild)
+            #node will be garbage collected
+            removeNode.parent = None
+            removeNode.rchild = None
+            parent.update()
+            self._balance(parent)
+        #if only lchild, just replace with lchild
+        elif removeNode.rchild is None:
+            parent = removeNode.parent
+            parentSetter(removeNode.lchild)
+            #node will be garbage collected
+            removeNode.parent = None
+            removeNode.lchild = None
+            parent.update()
+            self._balance(parent)
         else:
-            '''
-            if isLeftChild:
-                #swap out with  
-                valParent.setLChild(
-            else:
-            '''
-            pass
-            
+            #find the left child's rightmost child
+            inorderPrev = removeNode.lchild
+            while not inorderPrev.rchild is None:
+                inorderPrev = inorderPrev.rchild
+            #swap values then cut the node loose
+            parentSetter = self._findParentSetter(inorderPrev)
+            parent = inorderPrev.parent
+            tmp = inorderPrev.val
+            inorderPrev.val = removeNode.val
+            removeNode.val = tmp
+            parentSetter(None)
+            #node will be garbage collected
+            inorderPrev.parent = None
+            inorderPrev.lchild = None
+            parent.update()
+            self._balance(parent)
             
     def _setRoot(self,node):
         print("Set root to "+str(node))
@@ -159,21 +193,22 @@ class AvlTree:
         print("Balancing %s height:%i order:%i"%(str(node), node.height, node.getOrder() ))
             
         if node.getOrder() < -1:
-            #LL
-            if node.lchild.getOrder() < 0:
-                print("\tLL CASE")
-                #rotate right on node and its lchild
-                self._rotR(node,node.lchild)
             #LR
-            elif node.lchild.getOrder() > 0:
+            if node.lchild.getOrder() > 0:
                 print("\tLR CASE")
                 #rotate left on node's lchild's rchild & node's lchild
                 self._rotL(node.lchild,node.lchild.rchild)
                 #rotate right on node's lchild and node
                 self._rotR(node,       node.lchild)
+            #LL
+            #elif node.lchild.getOrder() < 0:
             else:
-                #violation of AVL tree
-                raise AssertionError("node %s was leftheavy but lchild %s was order 0"%(str(node),str(node.lchild)))
+                print("\tLL CASE")
+                #rotate right on node and its lchild
+                self._rotR(node,node.lchild)
+            #else:
+            #    #violation of AVL tree
+            #    raise AssertionError("node %s was leftheavy but lchild %s was order 0"%(str(node),str(node.lchild)))
         elif node.getOrder() > 1:
             #RR
             if node.rchild.getOrder() > 0:
@@ -181,17 +216,43 @@ class AvlTree:
                 #rotate left on node and its rchild
                 self._rotL(node,node.rchild)
             #RL
-            elif node.rchild.getOrder() < 0:
+            #elif node.rchild.getOrder() < 0:
+            else:
                 print("\tRL CASE")
                 #rotate right on node's rchild's lchild & node's rchild
                 self._rotR(node.rchild, node.rchild.lchild)
                 #rotate left on node's rchild and node
                 self._rotL(node,        node.rchild)
-            else:
-                #violation of AVL tree
-                raise AssertionError("node %s was rightheavy but rchild %s was order 0"%(str(node),str(node.rchild)))
+            #else:
+            #    #violation of AVL tree
+            #    raise AssertionError("node %s was rightheavy but rchild %s was order 0"%(str(node),str(node.rchild)))
         if not node.parent is None:
             self._balance(node.parent)
+
+    def _getNodeIndex(self,lbound,node):
+        lsize = 0 if node.lchild is None else node.lchild.size
+        return lbound + lsize
+
+    def _findIndex(self,lbound,rbound,node,idx):
+        '''
+        currentIdx = self._getNodeIndex(lbound,node)
+        if currentIdx < idx:
+            return self._findIdx(lbound,rbound-1-node.)
+        elif currentIdx > idx:
+            return node
+        else:
+            return node
+        '''
+        pass
+        
+    def getMedian(self):
+        
+        #if even, find middle 2
+        
+        #if odd find middle 1
+        pass
+            
+    
     def assertIntegrity(self,node=None):
         if node is None:
             if self.root is None:
@@ -212,84 +273,107 @@ class AvlTree:
     def __repr__(self):
         return "{}" if self.root is None else self._inOrderRepr(self.root)
 
-#test the tree
-print("-"*10)
-print("Creating AvlTree")
-tree = AvlTree()
-assert str(tree) == "{}","FAILED: Tree failed creation"
-print(str(tree))
+if __name__ == "__main__":
+    #test the tree
+    print("-"*10)
+    print("Creating AvlTree")
+    tree = AvlTree()
+    assert str(tree) == "{}","FAILED: Tree failed creation"
+    print(str(tree))
 
-print("-"*10)
-print("Add 5")
-tree.add(5)
-assert str(tree) == "{5}","FAILED: Add 5 tree:"+str(tree)
-tree.assertIntegrity()
-print(str(tree))
+    print("-"*10)
+    print("Add 5")
+    tree.add(5)
+    assert str(tree) == "{5}","FAILED: Add 5 tree:"+str(tree)
+    tree.assertIntegrity()
+    print(str(tree))
 
-print("-"*10)
-print("Add 2")
-tree.add(2)
-assert str(tree) == "{{2}<5}","FAILED: Add 2 tree:"+str(tree)
-tree.assertIntegrity()
-print(str(tree))
+    print("-"*10)
+    print("Add 2")
+    tree.add(2)
+    assert str(tree) == "{{2}<5}","FAILED: Add 2 tree:"+str(tree)
+    tree.assertIntegrity()
+    print(str(tree))
 
-print("-"*10)
-print("Add 8")
-tree.add(8)
-assert str(tree) == "{{2}<5>{8}}","FAILED: Add 8 tree:"+str(tree)
-tree.assertIntegrity()
-print(str(tree))
+    print("-"*10)
+    print("Add 8")
+    tree.add(8)
+    assert str(tree) == "{{2}<5>{8}}","FAILED: Add 8 tree:"+str(tree)
+    tree.assertIntegrity()
+    print(str(tree))
 
-print("-"*10)
-print("Add 10")
-tree.add(10)
-assert str(tree) == "{{2}<5>{8>{10}}}","FAILED: Add 10 tree:"+str(tree)
-tree.assertIntegrity()
-print(str(tree))
+    print("-"*10)
+    print("Add 10")
+    tree.add(10)
+    assert str(tree) == "{{2}<5>{8>{10}}}","FAILED: Add 10 tree:"+str(tree)
+    tree.assertIntegrity()
+    print(str(tree))
 
-print("-"*10)
-print("Add 12")
-#triggers RR condition on 8
-tree.add(12)
-assert str(tree) == "{{2}<5>{{8}<10>{12}}}","FAILED: Add 12 tree:"+str(tree)
-tree.assertIntegrity()
-print(str(tree))
+    print("-"*10)
+    print("Add 12")
+    #triggers RR condition on 8
+    tree.add(12)
+    assert str(tree) == "{{2}<5>{{8}<10>{12}}}","FAILED: Add 12 tree:"+str(tree)
+    tree.assertIntegrity()
+    print(str(tree))
 
-print("-"*10)
-print("Add 6")
-#triggers RL condition on the root
-tree.add(6)
-assert str(tree) == "{{{2}<5>{6}}<8>{10>{12}}}","FAILED: Add 6 tree:"+str(tree)
-tree.assertIntegrity()
-print(str(tree))
+    print("-"*10)
+    print("Add 6")
+    #triggers RL condition on the root
+    tree.add(6)
+    assert str(tree) == "{{{2}<5>{6}}<8>{10>{12}}}","FAILED: Add 6 tree:"+str(tree)
+    tree.assertIntegrity()
+    print(str(tree))
 
-print("-"*10)
-print("Add 1")
-tree.add(1)
-assert str(tree) == "{{{{1}<2}<5>{6}}<8>{10>{12}}}","FAILED: Add 1 tree:"+str(tree)
-tree.assertIntegrity()
-print(str(tree))
+    print("-"*10)
+    print("Add 1")
+    tree.add(1)
+    assert str(tree) == "{{{{1}<2}<5>{6}}<8>{10>{12}}}","FAILED: Add 1 tree:"+str(tree)
+    tree.assertIntegrity()
+    print(str(tree))
 
-print("-"*10)
-print("Add 3")
-tree.add(3)
-assert str(tree) == "{{{{1}<2>{3}}<5>{6}}<8>{10>{12}}}","FAILED: Add 3 tree:"+str(tree)
-tree.assertIntegrity()
-print(str(tree))
+    print("-"*10)
+    print("Add 3")
+    tree.add(3)
+    assert str(tree) == "{{{{1}<2>{3}}<5>{6}}<8>{10>{12}}}","FAILED: Add 3 tree:"+str(tree)
+    tree.assertIntegrity()
+    print(str(tree))
 
-print("-"*10)
-print("Add 4")
-#triggers LR condition on 5
-tree.add(4)
-assert str(tree) == "{{{{1}<2}<3>{{4}<5>{6}}}<8>{10>{12}}}","FAILED: Add 4 tree:"+str(tree)
-tree.assertIntegrity()
-print(str(tree))
+    print("-"*10)
+    print("Add 4")
+    #triggers LR condition on 5
+    tree.add(4)
+    assert str(tree) == "{{{{1}<2}<3>{{4}<5>{6}}}<8>{10>{12}}}","FAILED: Add 4 tree:"+str(tree)
+    tree.assertIntegrity()
+    print(str(tree))
 
+    print("-"*10)
+    print("Add 0")
+    #triggers LL condition on 2
+    tree.add(0)
+    assert str(tree) == "{{{{0}<1>{2}}<3>{{4}<5>{6}}}<8>{10>{12}}}","FAILED: Add 0 tree:"+str(tree)
+    tree.assertIntegrity()
+    print(str(tree))
 
-print("-"*10)
-print("Add 0")
-#triggers LL condition on 2
-tree.add(0)
-assert str(tree) == "{{{{0}<1>{2}}<3>{{4}<5>{6}}}<8>{10>{12}}}","FAILED: Add 0 tree:"+str(tree)
-tree.assertIntegrity()
-print(str(tree))
+    print("-"*10)
+    print("remove 12")
+    #triggers LL condition on 8
+    tree.remove(12)
+    assert str(tree) == "{{{0}<1>{2}}<3>{{{4}<5>{6}}<8>{10}}}","FAILED: Remove 12 tree:"+str(tree)
+    tree.assertIntegrity()
+    print(str(tree))
+
+    print("-"*10)
+    print("remove 3")
+    tree.remove(3)
+    assert str(tree) == "{{{0}<1}<2>{{{4}<5>{6}}<8>{10}}}","FAILED: Remove 12 tree:"+str(tree)
+    tree.assertIntegrity()
+    print(str(tree))
+
+    print("-"*10)
+    print("remove 1")
+    #triggers RL condition on 2
+    tree.remove(1)
+    assert str(tree) == "{{{0}<2>{4}}<5>{{6}<8>{10}}}","FAILED: Remove 1 tree:"+str(tree)
+    tree.assertIntegrity()
+    print(str(tree))
